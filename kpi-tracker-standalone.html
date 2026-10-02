@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Seguimiento de KPIs</title>
+<link rel="icon" href="data:,📐">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style id="app-style">
+  :root {
+    --ink-900:#0a1830;
+    --ink-800:#11274c;
+    --ink-700:#1a3866;
+    --line:rgba(255,255,255,0.14);
+    --line-strong:rgba(255,255,255,0.3);
+    --paper:#f4f6fb;
+    --paper-dim:#9fb0c9;
+    --amber:#d2322b;
+    --amber-dim:rgba(210,50,43,0.26);
+    --cyan:#ffffff;
+    --danger:#ff8a75;
+    --bg: var(--ink-900);
+    --surface: var(--ink-800);
+    --surface-2: var(--ink-700);
+    --text: var(--paper);
+    --text-dim: var(--paper-dim);
+    --rule: var(--line);
+    --rule-strong: var(--line-strong);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg:#f7f5f0;
+    --surface:#ffffff;
+    --surface-2:#f0eee8;
+    --text:#0f1f38;
+    --text-dim:#5a6b83;
+    --rule:rgba(15,31,56,0.14);
+    --rule-strong:rgba(15,31,56,0.3);
+    --amber-dim:rgba(210,50,43,0.16);
+    --cyan:#0f1f38;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    border-top: 6px solid;
+    border-image: repeating-linear-gradient(90deg, var(--amber) 0 22px, #fff 22px 44px) 6;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .display { font-family: 'Space Grotesk', sans-serif; }
+  #app { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  .top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--rule-strong); padding-bottom: 18px; margin-bottom: 28px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .top h1 { font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .top .meta { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+  .btn {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14px;
+    background: var(--amber); color: #fff5f4; border: none; border-radius: 3px;
+    padding: 10px 16px; cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--rule-strong);
+  }
+  .btn.ghost {
+    background: transparent; color: var(--text-dim); border: none; padding: 4px 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  }
+  .btn.ghost:hover { color: var(--danger); }
+
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .suggestion-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-top: 4px; }
+  .suggestion {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: 4px;
+    padding: 10px 12px; text-align: left; cursor: pointer; color: var(--text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+  }
+  .suggestion:hover { border-color: var(--amber); }
+  .suggestion .suggestion-meta { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+
+  .overall { margin-bottom: 26px; }
+  .overall-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-dim); margin-bottom: 7px; }
+  .overall-pct { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; transition: color 400ms ease; }
+  .overall-track { height: 12px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--rule-strong); overflow: hidden; }
+  .overall-fill { height: 100%; border-radius: 6px; transition: width 400ms ease, background 400ms ease; }
+
+  .empty {
+    border: 1px dashed var(--rule-strong); border-radius: 4px; padding: 48px 24px;
+    text-align: center; color: var(--text-dim);
+  }
+  .empty .display { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 18px 20px; margin-bottom: 14px; position: relative;
+  }
+  .card.done { border-color: rgba(94,203,220,0.4); }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .card-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .card-tags { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .card-tags .overdue { color: var(--danger); }
+  .card-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+  .ruler { margin-top: 14px; }
+  .ruler-track {
+    position: relative; height: 22px; border: 1px solid var(--rule-strong); border-radius: 2px;
+    background:
+      repeating-linear-gradient(90deg, var(--rule) 0, var(--rule) 1px, transparent 1px, transparent 10%);
+    overflow: hidden;
+  }
+  .ruler-fill {
+    position: absolute; top: 0; left: 0; bottom: 0; background: var(--amber-dim);
+    border-right: 2px solid var(--amber);
+  }
+  .ruler-fill.done { background: rgba(94,203,220,0.22); border-right-color: var(--cyan); }
+  .ruler-row { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--text-dim); }
+  .ruler-row .pct { color: var(--text); font-weight: 600; font-family: 'Space Grotesk', sans-serif; }
+
+  .update-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+  .update-row input[type="number"] {
+    width: 96px;
+  }
+  .update-row .btn { padding: 7px 12px; font-size: 13px; }
+
+  .stepper { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .stepper button {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--rule-strong);
+    background: var(--surface-2); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px; font-weight: 700; cursor: pointer; line-height: 1; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stepper button:hover { border-color: var(--amber); color: var(--amber); }
+  .stepper button.plus:hover { border-color: var(--amber); background: var(--amber); color: #fff5f4; }
+  .stepper .step-label { color: var(--text-dim); font-size: 12px; }
+
+  input, textarea {
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: 3px;
+    padding: 8px 10px; width: 100%;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .field { margin-bottom: 12px; }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(6,12,20,0.6); backdrop-filter: blur(2px);
+    display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; z-index: 10;
+    overflow-y: auto;
+  }
+  .modal {
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 6px;
+    padding: 24px; width: 100%; max-width: 420px;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 19px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  .theme-toggle {
+    position: fixed; bottom: env(safe-area-inset-bottom, 16px); right: 16px;
+    background: var(--surface); border: 1px solid var(--rule-strong); color: var(--text-dim);
+    border-radius: 20px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+
+  .confetti-piece {
+    position: fixed; top: 0; left: 0; width: 8px; height: 14px; pointer-events: none; z-index: 50;
+    border-radius: 1px; opacity: 1;
+    transform: translate(var(--cx), var(--cy));
+    animation: confetti-fall 1200ms cubic-bezier(.25,.46,.45,.94) forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translate(var(--cx), var(--cy)) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(var(--cx) + var(--dx)), calc(var(--cy) + var(--dy))) rotate(var(--rot)); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti-piece { display: none; }
+  }
+
+  @media (max-width: 480px) {
+    .field-row { flex-direction: column; gap: 0; }
+    .top h1 { font-size: 23px; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script id="kpi-data" type="application/json">{"kpis":[],"theme":"dark"}</script>
+<script id="app-script">
+(function(){
+  var STORAGE_KEY = 'kpi-tracker-data-v1';
+  var seed = JSON.parse(document.getElementById('kpi-data').textContent);
+  var state = seed;
+  var loaded = true;
+  var uiMode = null; // null | 'add' | {edit:id} | {update:id}
+  var readOnly = false;
+  var selectedSector = null;
+
+  var SECTOR_KPIS = {
+    'Ventas': [
+      {name:'Ingresos mensuales', target:10000, unit:'€'},
+      {name:'Nuevos clientes', target:20, unit:'clientes'},
+      {name:'Tasa de conversión', target:100, unit:'%'},
+      {name:'Ticket medio', target:50, unit:'€'},
+      {name:'Oportunidades cerradas', target:15, unit:'oportunidades'}
+    ],
+    'Marketing': [
+      {name:'Tráfico web mensual', target:5000, unit:'visitas'},
+      {name:'Leads generados', target:200, unit:'leads'},
+      {name:'Tasa de conversión de leads', target:100, unit:'%'},
+      {name:'Seguidores en redes', target:1000, unit:'seguidores'},
+      {name:'ROI de campañas', target:100, unit:'%'}
+    ],
+    'Atención al cliente': [
+      {name:'Tickets resueltos', target:100, unit:'tickets'},
+      {name:'Satisfacción del cliente (CSAT)', target:100, unit:'%'},
+      {name:'Resolución en el primer contacto', target:100, unit:'%'},
+      {name:'Tiempo de respuesta cumplido', target:100, unit:'%'},
+      {name:'Clientes retenidos', target:100, unit:'%'}
+    ],
+    'Recursos Humanos': [
+      {name:'Contrataciones completadas', target:10, unit:'contrataciones'},
+      {name:'Rotación de personal', target:100, unit:'%'},
+      {name:'Empleados formados', target:100, unit:'%'},
+      {name:'Satisfacción del empleado (eNPS)', target:100, unit:'%'},
+      {name:'Vacantes cubiertas a tiempo', target:100, unit:'%'}
+    ],
+    'Tecnología / Desarrollo': [
+      {name:'Sprints completados a tiempo', target:100, unit:'%'},
+      {name:'Bugs resueltos', target:50, unit:'bugs'},
+      {name:'Cobertura de tests', target:100, unit:'%'},
+      {name:'Despliegues exitosos', target:100, unit:'%'},
+      {name:'Uptime del servicio', target:100, unit:'%'}
+    ],
+    'E-commerce': [
+      {name:'Ventas online mensuales', target:20000, unit:'€'},
+      {name:'Tasa de abandono de carrito', target:100, unit:'%'},
+      {name:'Pedidos completados', target:500, unit:'pedidos'},
+      {name:'Valor medio del pedido', target:60, unit:'€'},
+      {name:'Tasa de devoluciones', target:100, unit:'%'}
+    ],
+    'Producción': [
+      {name:'Unidades producidas', target:1000, unit:'unidades'},
+      {name:'Tasa de defectos', target:100, unit:'%'},
+      {name:'Eficiencia de línea (OEE)', target:100, unit:'%'},
+      {name:'Tiempo de inactividad', target:100, unit:'%'},
+      {name:'Pedidos entregados a tiempo', target:100, unit:'%'}
+    ],
+    'Hostelería': [
+      {name:'Comensales atendidos', target:500, unit:'comensales'},
+      {name:'Ticket medio', target:25, unit:'€'},
+      {name:'Ocupación media', target:100, unit:'%'},
+      {name:'Valoración media de clientes', target:5, unit:'estrellas'},
+      {name:'Rotación de mesas', target:100, unit:'%'}
+    ],
+    'Otro / general': [
+      {name:'Objetivo mensual', target:100, unit:'%'},
+      {name:'Tareas completadas', target:20, unit:'tareas'},
+      {name:'Satisfacción general', target:100, unit:'%'},
+      {name:'Costes controlados', target:100, unit:'%'}
+    ]
+  };
+  var SECTOR_NAMES = Object.keys(SECTOR_KPIS);
+
+  function uid(){ return 'k' + Math.random().toString(36).slice(2, 9); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  }); }
+  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
+
+  function daysUntil(dateStr){
+    if (!dateStr) return null;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var d = new Date(dateStr + 'T00:00:00');
+    return Math.round((d - today) / 86400000);
+  }
+
+  function spawnConfetti(el){
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var rect = el.getBoundingClientRect();
+    var originX = rect.left + rect.width / 2;
+    var originY = rect.top + 8;
+    var colors = ['#d2322b', '#ffffff', '#11274c', '#d2322b', '#ffffff'];
+    var pieces = [];
+    for (var i = 0; i < 28; i++){
+      var p = document.createElement('div');
+      p.className = 'confetti-piece';
+      var dx = (Math.random() * 260 - 130);
+      var dy = (Math.random() * 170 + 130);
+      var rot = (Math.random() * 520 - 260);
+      p.style.setProperty('--cx', originX + 'px');
+      p.style.setProperty('--cy', originY + 'px');
+      p.style.setProperty('--dx', dx + 'px');
+      p.style.setProperty('--dy', dy + 'px');
+      p.style.setProperty('--rot', rot + 'deg');
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 90) + 'ms';
+      document.body.appendChild(p);
+      pieces.push(p);
+    }
+    setTimeout(function(){ pieces.forEach(function(p){ p.remove(); }); }, 1500);
+  }
+
+  function exportExcel(){
+    if (!window.XLSX) return;
+    var rows = state.kpis.map(function(k){
+      var target = Number(k.target) || 0, current = Number(k.current) || 0;
+      var pct = target > 0 ? clamp(Math.round((current / target) * 100), 0, 100) : 0;
+      return {
+        'KPI': k.name,
+        'Valor actual': current,
+        'Meta': target,
+        'Unidad': k.unit || '',
+        'Progreso (%)': pct,
+        'Plazo': k.deadline || '',
+        'Notas': k.notes || ''
+      };
+    });
+    var ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:28},{wch:12},{wch:10},{wch:10},{wch:12},{wch:12},{wch:30}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'KPIs');
+    var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'kpis.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }
+
+  function milestoneOf(current, target){
+    if (!target || target <= 0) return 0;
+    return Math.floor(clamp((Number(current) / Number(target)) * 100, 0, 100) / 10);
+  }
+
+  function flush(){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      saveStatus = 'ok';
+    } catch(e) { saveStatus = 'error'; }
+    var el = document.getElementById('save-status');
+    if (el) el.textContent = statusText();
+  }
+
+  var saveStatus = 'ok';
+  function statusText(){
+    if (saveStatus === 'error') return 'no se pudo guardar en este navegador';
+    return 'guardado en este navegador';
+  }
+
+  function persist(newState, confettiIds){
+    state = newState;
+    render();
+    if (confettiIds && confettiIds.length) {
+      confettiIds.forEach(function(id){
+        var card = document.querySelector('[data-card="' + id + '"]');
+        if (card) spawnConfetti(card);
+      });
+    }
+    flush();
+  }
+
+  // ---- actions ----
+  function addKpi(data){
+    var k = { id: uid(), name: data.name, unit: data.unit || '', current: data.current, target: data.target, deadline: data.deadline || '', notes: data.notes || '', step: data.step || 1 };
+    k.milestone = milestoneOf(k.current, k.target);
+    var next = JSON.parse(JSON.stringify(state));
+    next.kpis.push(k);
+    uiMode = null;
+    persist(next);
+  }
+  function editKpi(id, data){
+    var next = JSON.parse(JSON.stringify(state));
+    var k = next.kpis.find(function(x){ return x.id === id; });
+    if (k) {
+      k.name = data.name; k.unit = data.unit || ''; k.target = data.target; k.deadline = data.deadline || ''; k.notes = data.notes || ''; k.step = data.step || 1;
+      k.milestone = milestoneOf(k.current, k.target);
+    }
+    uiMode = null;
+    persist(next);
+  }
+  function updateProgress(id, value){
+    var next = JSON.parse(JSON.stringify(state));
+    var k = next.kpis.find(function(x){ return x.id === id; });
+    var confetti = [];
+    if (k) {
+      var oldMilestone = k.milestone || 0;
+      k.current = value;
+      var newMilestone = milestoneOf(k.current, k.target);
+      k.milestone = newMilestone;
+      if (newMilestone > oldMilestone) confetti.push(id);
+    }
+    uiMode = null;
+    persist(next, confetti);
+  }
+  function bump(id, delta){
+    var next = JSON.parse(JSON.stringify(state));
+    var k = next.kpis.find(function(x){ return x.id === id; });
+    if (!k) return;
+    var step = Number(k.step) || 1;
+    var oldMilestone = k.milestone || 0;
+    k.current = clamp(Number(k.current) + delta * step, 0, Number.MAX_SAFE_INTEGER);
+    var newMilestone = milestoneOf(k.current, k.target);
+    k.milestone = newMilestone;
+    var confetti = newMilestone > oldMilestone ? [id] : [];
+    persist(next, confetti);
+  }
+  function removeKpi(id){
+    var next = JSON.parse(JSON.stringify(state));
+    next.kpis = next.kpis.filter(function(x){ return x.id !== id; });
+    persist(next);
+  }
+  function toggleTheme(){
+    var next = JSON.parse(JSON.stringify(state));
+    next.theme = (next.theme === 'light') ? 'dark' : 'light';
+    persist(next);
+  }
+
+  // ---- rendering ----
+  function kpiCard(k){
+    var target = Number(k.target) || 0;
+    var current = Number(k.current) || 0;
+    var pct = target > 0 ? clamp(Math.round((current / target) * 100), 0, 100) : 0;
+    var done = pct >= 100;
+    var dLeft = daysUntil(k.deadline);
+    var overdue = dLeft !== null && dLeft < 0 && !done;
+    var deadlineTxt = '';
+    if (k.deadline) {
+      if (overdue) deadlineTxt = '<span class="overdue">venció hace ' + Math.abs(dLeft) + ' d\u00edas</span>';
+      else if (dLeft === 0) deadlineTxt = 'vence hoy';
+      else deadlineTxt = 'faltan ' + dLeft + ' d\u00edas · ' + esc(k.deadline);
+    }
+    return '' +
+    '<div class="card ' + (done ? 'done' : '') + '" data-card="' + k.id + '">' +
+      '<div class="card-head">' +
+        '<div>' +
+          '<h3>' + esc(k.name) + '</h3>' +
+          '<div class="card-tags">' + current + (k.unit ? esc(k.unit) : '') + ' de ' + target + (k.unit ? esc(k.unit) : '') +
+            (deadlineTxt ? ' · ' + deadlineTxt : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="card-actions">' +
+          (readOnly ? '' :
+            '<button class="btn ghost" data-act="update" data-id="' + k.id + '">actualizar</button>' +
+            '<button class="btn ghost" data-act="edit" data-id="' + k.id + '">editar</button>' +
+            '<button class="btn ghost" data-act="delete" data-id="' + k.id + '">eliminar</button>') +
+        '</div>' +
+      '</div>' +
+      '<div class="ruler">' +
+        '<div class="ruler-track"><div class="ruler-fill ' + (done ? 'done' : '') + '" style="width:' + pct + '%"></div></div>' +
+        '<div class="ruler-row"><span>' + (k.notes ? esc(k.notes) : '&nbsp;') + '</span><span class="pct">' + pct + '%</span></div>' +
+      '</div>' +
+      (readOnly ? '' :
+      '<div class="stepper">' +
+        '<button class="minus" data-act="dec" data-id="' + k.id + '" aria-label="Restar">\u2212</button>' +
+        '<button class="plus" data-act="inc" data-id="' + k.id + '" aria-label="Sumar">+</button>' +
+        '<span class="step-label">incrementos de ' + (Number(k.step) || 1) + (k.unit ? esc(k.unit) : '') + '</span>' +
+      '</div>') +
+    '</div>';
+  }
+
+  function modalHtml(){
+    if (!uiMode) return '';
+    if (uiMode === 'add' || (uiMode.edit)) {
+      var editing = uiMode.edit ? state.kpis.find(function(x){ return x.id === uiMode.edit; }) : null;
+      return '' +
+      '<div class="overlay" data-close="1">' +
+        '<div class="modal" data-stop="1">' +
+          '<h2>' + (editing ? 'Editar KPI' : 'Nuevo KPI') + '</h2>' +
+          '<div class="field"><label>Nombre</label><input id="f-name" value="' + (editing ? esc(editing.name) : '') + '" placeholder="Ej. Tareas del sprint completadas"></div>' +
+          '<div class="field-row">' +
+            (editing ? '' : '<div class="field"><label>Valor actual</label><input id="f-current" type="number" value="0"></div>') +
+            '<div class="field"><label>Meta / objetivo</label><input id="f-target" type="number" value="' + (editing ? editing.target : 100) + '"></div>' +
+          '</div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Unidad (opcional)</label><input id="f-unit" value="' + (editing ? esc(editing.unit) : '') + '" placeholder="ej. %, tareas, €"></div>' +
+            '<div class="field"><label>Plazo (opcional)</label><input id="f-deadline" type="date" value="' + (editing ? editing.deadline : '') + '"></div>' +
+          '</div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Notas (opcional)</label><input id="f-notes" value="' + (editing ? esc(editing.notes) : '') + '"></div>' +
+            '<div class="field"><label>Incremento del bot\u00f3n +/\u2212</label><input id="f-step" type="number" min="0" step="any" value="' + (editing ? (Number(editing.step) || 1) : 1) + '"></div>' +
+          '</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn secondary" data-act="cancel">Cancelar</button>' +
+            '<button class="btn" data-act="' + (editing ? 'save-edit' : 'save-add') + '" data-id="' + (editing ? editing.id : '') + '">Guardar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    if (uiMode.update) {
+      var k = state.kpis.find(function(x){ return x.id === uiMode.update; });
+      if (!k) return '';
+      return '' +
+      '<div class="overlay" data-close="1">' +
+        '<div class="modal" data-stop="1">' +
+          '<h2>Actualizar progreso</h2>' +
+          '<div class="card-tags" style="margin-bottom:12px;">' + esc(k.name) + '</div>' +
+          '<div class="field"><label>Valor actual (de ' + k.target + (k.unit ? esc(k.unit) : '') + ')</label><input id="f-progress" type="number" value="' + k.current + '" autofocus></div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn secondary" data-act="cancel">Cancelar</button>' +
+            '<button class="btn" data-act="save-progress" data-id="' + k.id + '">Guardar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    if (uiMode.del) {
+      var kd = state.kpis.find(function(x){ return x.id === uiMode.del; });
+      if (!kd) return '';
+      return '' +
+      '<div class="overlay" data-close="1">' +
+        '<div class="modal" data-stop="1">' +
+          '<h2>\u00bfEliminar este KPI?</h2>' +
+          '<div class="card-tags" style="margin-bottom:18px;">' + esc(kd.name) + ' se eliminar\u00e1 y no podr\u00e1 recuperarse.</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn secondary" data-act="cancel">Cancelar</button>' +
+            '<button class="btn" data-act="confirm-delete" data-id="' + kd.id + '">Eliminar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    if (uiMode === 'suggest') {
+      var sector = selectedSector || SECTOR_NAMES[0];
+      var items = SECTOR_KPIS[sector] || [];
+      var options = SECTOR_NAMES.map(function(s){
+        return '<option value="' + esc(s) + '"' + (s === sector ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('');
+      var chips = items.map(function(it, i){
+        return '<button class="suggestion" data-act="pick-suggestion" data-idx="' + i + '">' +
+          '<span>' + esc(it.name) + '</span>' +
+          '<span class="suggestion-meta">meta: ' + it.target + esc(it.unit) + ' · +</span>' +
+        '</button>';
+      }).join('');
+      return '' +
+      '<div class="overlay" data-close="1">' +
+        '<div class="modal" data-stop="1">' +
+          '<h2>Sugerencias de KPIs por sector</h2>' +
+          '<div class="field"><label>Sector</label><select id="f-sector">' + options + '</select></div>' +
+          '<div class="suggestion-list">' + (chips || '<div class="card-tags">Sin sugerencias para este sector.</div>') + '</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn secondary" data-act="cancel">Cerrar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    return '';
+  }
+
+  function render(){
+    if (!loaded) { document.getElementById('app').innerHTML = '<div class="empty"><div class="display">Cargando tus KPIs\u2026</div></div>'; return; }
+    document.documentElement.setAttribute('data-theme', state.theme === 'light' ? 'light' : 'dark');
+    var kpis = state.kpis.slice().sort(function(a, b){
+      var da = daysUntil(a.deadline), db = daysUntil(b.deadline);
+      if (da === null && db === null) return 0;
+      if (da === null) return 1;
+      if (db === null) return -1;
+      return da - db;
+    });
+    var list = kpis.length ?
+      kpis.map(kpiCard).join('') :
+      '<div class="empty"><div class="display">Sin KPIs todav\u00eda</div>A\u00f1ade el primero para empezar a ver el progreso.</div>';
+
+    var avgPct = kpis.length ? Math.round(kpis.reduce(function(sum, k){
+      var t = Number(k.target) || 0, c = Number(k.current) || 0;
+      return sum + (t > 0 ? clamp((c / t) * 100, 0, 100) : 0);
+    }, 0) / kpis.length) : 0;
+    var barHue = Math.round(clamp(avgPct, 0, 100) * 1.2);
+    var barColor = 'hsl(' + barHue + ', 72%, 45%)';
+
+    document.getElementById('app').innerHTML =
+      '<div class="top">' +
+        '<div><h1>Seguimiento de KPIs</h1><div class="meta">' + state.kpis.length + ' indicador' + (state.kpis.length === 1 ? '' : 'es') + ' registrado' + (state.kpis.length === 1 ? '' : 's') + ' \u00b7 <span id="save-status">' + statusText() + '</span></div></div>' +
+        (readOnly ? '' : '<div class="header-actions"><button class="btn secondary" data-act="suggest">Sugerencias por sector</button><button class="btn secondary" data-act="export-excel">Exportar a Excel</button><button class="btn" data-act="add">+ Nuevo KPI</button></div>') +
+      '</div>' +
+      '<div class="overall">' +
+        '<div class="overall-row"><span>Progreso medio de todos los KPIs</span><span class="overall-pct" style="color:' + barColor + '">' + avgPct + '%</span></div>' +
+        '<div class="overall-track"><div class="overall-fill" style="width:' + avgPct + '%;background:' + barColor + '"></div></div>' +
+      '</div>' +
+      list +
+      modalHtml() +
+      (readOnly ? '' : '<button class="theme-toggle" data-act="theme">' + (state.theme === 'light' ? '\u25CF oscuro' : '\u25CB claro') + '</button>');
+  }
+
+  document.getElementById('app').addEventListener('change', function(e){
+    if (e.target && e.target.id === 'f-sector') {
+      selectedSector = e.target.value;
+      render();
+    }
+  });
+
+  document.getElementById('app').addEventListener('click', function(e){
+    var overlay = e.target.closest('[data-close]');
+    if (overlay && e.target === overlay) { uiMode = null; render(); return; }
+    var btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    var act = btn.getAttribute('data-act');
+    var id = btn.getAttribute('data-id');
+
+    if (act === 'add') { uiMode = 'add'; render(); }
+    else if (act === 'suggest') { selectedSector = selectedSector || SECTOR_NAMES[0]; uiMode = 'suggest'; render(); }
+    else if (act === 'export-excel') { exportExcel(); }
+    else if (act === 'pick-suggestion') {
+      var sector2 = selectedSector || SECTOR_NAMES[0];
+      var item = (SECTOR_KPIS[sector2] || [])[Number(btn.getAttribute('data-idx'))];
+      if (item) {
+        var step2 = Math.max(1, Math.round(item.target / 20));
+        addKpi({ name: item.name, current: 0, target: item.target, unit: item.unit, step: step2 });
+        uiMode = 'suggest';
+        render();
+      }
+    }
+    else if (act === 'edit') { uiMode = { edit: id }; render(); }
+    else if (act === 'update') { uiMode = { update: id }; render(); }
+    else if (act === 'delete') { uiMode = { del: id }; render(); }
+    else if (act === 'confirm-delete') { uiMode = null; removeKpi(id); }
+    else if (act === 'cancel') { uiMode = null; render(); }
+    else if (act === 'theme') { toggleTheme(); }
+    else if (act === 'inc') { bump(id, 1); }
+    else if (act === 'dec') { bump(id, -1); }
+    else if (act === 'save-add') {
+      var name = document.getElementById('f-name').value.trim();
+      if (!name) return;
+      addKpi({
+        name: name,
+        current: Number(document.getElementById('f-current').value) || 0,
+        target: Number(document.getElementById('f-target').value) || 0,
+        unit: document.getElementById('f-unit').value.trim(),
+        deadline: document.getElementById('f-deadline').value,
+        notes: document.getElementById('f-notes').value.trim(),
+        step: Number(document.getElementById('f-step').value) || 1
+      });
+    }
+    else if (act === 'save-edit') {
+      var name2 = document.getElementById('f-name').value.trim();
+      if (!name2) return;
+      editKpi(id, {
+        name: name2,
+        target: Number(document.getElementById('f-target').value) || 0,
+        unit: document.getElementById('f-unit').value.trim(),
+        deadline: document.getElementById('f-deadline').value,
+        notes: document.getElementById('f-notes').value.trim(),
+        step: Number(document.getElementById('f-step').value) || 1
+      });
+    }
+    else if (act === 'save-progress') {
+      updateProgress(id, Number(document.getElementById('f-progress').value) || 0);
+    }
+  });
+
+  (function init(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch(e) { /* sigue funcionando sin guardado si el navegador lo bloquea */ }
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
